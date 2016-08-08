@@ -7978,6 +7978,10 @@ class assign {
         // Check if default gradebook feedback is visible and enabled.
         $gradebookfeedbackplugin = $this->get_feedback_plugin_by_type($gradebookplugin);
 
+        if (empty($gradebookfeedbackplugin)) {
+            return false;
+        }
+
         if ($gradebookfeedbackplugin->is_visible() && $gradebookfeedbackplugin->is_enabled()) {
             return true;
         }
@@ -8068,6 +8072,15 @@ class assign {
         return;
     }
 
+    /**
+     * Update the module completion status (set it viewed).
+     *
+     * @since Moodle 3.2
+     */
+    public function set_module_viewed() {
+        $completion = new completion_info($this->get_course());
+        $completion->set_module_viewed($this->get_course_module());
+    }
 }
 
 /**

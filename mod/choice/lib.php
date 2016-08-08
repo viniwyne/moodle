@@ -21,6 +21,8 @@
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+defined('MOODLE_INTERNAL') || die();
+
 /** @global int $CHOICE_COLUMN_HEIGHT */
 global $CHOICE_COLUMN_HEIGHT;
 $CHOICE_COLUMN_HEIGHT = 300;
@@ -112,14 +114,10 @@ function choice_user_complete($course, $user, $mod, $choice) {
  * @return int
  */
 function choice_add_instance($choice) {
-    global $DB;
+    global $DB, $CFG;
+    require_once($CFG->dirroot.'/mod/choice/locallib.php');
 
     $choice->timemodified = time();
-
-    if (empty($choice->timerestrict)) {
-        $choice->timeopen = 0;
-        $choice->timeclose = 0;
-    }
 
     //insert answers
     $choice->id = $DB->insert_record("choice", $choice);
@@ -137,6 +135,9 @@ function choice_add_instance($choice) {
         }
     }
 
+    // Add calendar events if necessary.
+    choice_set_events($choice);
+
     return $choice->id;
 }
 
@@ -150,16 +151,11 @@ function choice_add_instance($choice) {
  * @return bool
  */
 function choice_update_instance($choice) {
-    global $DB;
+    global $DB, $CFG;
+    require_once($CFG->dirroot.'/mod/choice/locallib.php');
 
     $choice->id = $choice->instance;
     $choice->timemodified = time();
-
-
-    if (empty($choice->timerestrict)) {
-        $choice->timeopen = 0;
-        $choice->timeclose = 0;
-    }
 
     //update, delete or insert answers
     foreach ($choice->option as $key => $value) {
@@ -175,8 +171,11 @@ function choice_update_instance($choice) {
             $option->id=$choice->optionid[$key];
             if (isset($value) && $value <> '') {
                 $DB->update_record("choice_options", $option);
-            } else { //empty old option - needs to be deleted.
-                $DB->delete_records("choice_options", array("id"=>$option->id));
+            } else {
+                // Remove the empty (unused) option.
+                $DB->delete_records("choice_options", array("id" => $option->id));
+                // Delete any answers associated with this option.
+                $DB->delete_records("choice_answers", array("choiceid" => $choice->id, "optionid" => $option->id));
             }
         } else {
             if (isset($value) && $value <> '') {
@@ -184,6 +183,9 @@ function choice_update_instance($choice) {
             }
         }
     }
+
+    // Add calendar events if necessary.
+    choice_set_events($choice);
 
     return $DB->update_record('choice', $choice);
 
@@ -590,6 +592,10 @@ function choice_delete_instance($id) {
     }
 
     if (! $DB->delete_records("choice", array("id"=>"$choice->id"))) {
+        $result = false;
+    }
+    // Remove old calendar events.
+    if (! $DB->delete_records('event', array('modulename' => 'choice', 'instance' => $choice->id))) {
         $result = false;
     }
 
@@ -1050,16 +1056,14 @@ function choice_get_availability_status($choice) {
     $available = true;
     $warnings = array();
 
-    if ($choice->timeclose != 0) {
-        $timenow = time();
+    $timenow = time();
 
-        if ($choice->timeopen > $timenow) {
-            $available = false;
-            $warnings['notopenyet'] = userdate($choice->timeopen);
-        } else if ($timenow > $choice->timeclose) {
-            $available = false;
-            $warnings['expired'] = userdate($choice->timeclose);
-        }
+    if (!empty($choice->timeopen) && ($choice->timeopen > $timenow)) {
+        $available = false;
+        $warnings['notopenyet'] = userdate($choice->timeopen);
+    } else if (!empty($choice->timeclose) && ($timenow > $choice->timeclose)) {
+        $available = false;
+        $warnings['expired'] = userdate($choice->timeclose);
     }
     if (!$choice->allowupdate && choice_get_my_response($choice)) {
         $available = false;
@@ -1069,3 +1073,34 @@ function choice_get_availability_status($choice) {
     // Choice is available.
     return array($available, $warnings);
 }
+
+/**
+ * This standard function will check all instances of this module
+ * and make sure there are up-to-date events created for each of them.
+ * If courseid = 0, then every chat event in the site is checked, else
+ * only chat events belonging to the course specified are checked.
+ * This function is used, in its new format, by restore_refresh_events()
+ *
+ * @param int $courseid
+ * @return bool
+ */
+function choice_refresh_events($courseid = 0) {
+    global $DB, $CFG;
+    require_once($CFG->dirroot.'/mod/choice/locallib.php');
+
+    if ($courseid) {
+        if (! $choices = $DB->get_records("choice", array("course" => $courseid))) {
+            return true;
+        }
+    } else {
+        if (! $choices = $DB->get_records("choice")) {
+            return true;
+        }
+    }
+
+    foreach ($choices as $choice) {
+        choice_set_events($choice);
+    }
+    return true;
+}
+

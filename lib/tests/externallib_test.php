@@ -105,8 +105,8 @@ class core_externallib_testcase extends advanced_testcase {
 
         $test = '$$ \pi $$';
         $testformat = FORMAT_MARKDOWN;
-        $correct = array('<span class="nolink"><span class="filter_mathjaxloader_equation"><p>$$ \pi $$</p>
-</span></span>', FORMAT_HTML);
+        $correct = array('<span class="filter_mathjaxloader_equation"><p><span class="nolink">$$ \pi $$</span></p>
+</span>', FORMAT_HTML);
         $this->assertSame(external_format_text($test, $testformat, $context->id, 'core', '', 0), $correct);
 
         // Filters can be opted out from by the developer.
@@ -196,6 +196,7 @@ class core_externallib_testcase extends advanced_testcase {
         $correct = 'ENFR hi there%';
         $this->assertSame($correct, external_format_string($test, $context->id, false, ['filter' => false]));
 
+        $this->assertSame("& < > \" '", format_string("& < > \" '", true, ['escape' => false]));
 
         $settings->set_raw($currentraw);
         $settings->set_filter($currentfilter);
@@ -257,7 +258,7 @@ class core_externallib_testcase extends advanced_testcase {
         $singlestructure['object'] = $object;
         $singlestructure['value2'] = 'Some text';
         $testdata = array($singlestructure);
-        $this->setExpectedException('invalid_response_exception');
+        $this->expectException('invalid_response_exception');
         $cleanedvalue = external_api::clean_returnvalue($returndesc, $testdata);
     }
     /*
@@ -304,7 +305,7 @@ class core_externallib_testcase extends advanced_testcase {
         $this->assertEquals($realcontext, $fetchedcontext);
 
         // Passing wrong level.
-        $this->setExpectedException('invalid_parameter_exception');
+        $this->expectException('invalid_parameter_exception');
         $fetchedcontext = test_exernal_api::get_context_wrapper(array("contextlevel" => "random", "instanceid" => $course->id));
     }
 
@@ -315,7 +316,7 @@ class core_externallib_testcase extends advanced_testcase {
         global $USER;
 
         // Call without correct context details.
-        $this->setExpectedException('invalid_parameter_exception');
+        $this->expectException('invalid_parameter_exception');
         test_exernal_api::get_context_wrapper(array('roleid' => 3, 'userid' => $USER->id));
     }
 
@@ -326,7 +327,7 @@ class core_externallib_testcase extends advanced_testcase {
         global $USER;
 
         // Call without correct context details.
-        $this->setExpectedException('invalid_parameter_exception');
+        $this->expectException('invalid_parameter_exception');
         test_exernal_api::get_context_wrapper(array('roleid' => 3, 'userid' => $USER->id, 'contextlevel' => "course"));
     }
 
@@ -339,7 +340,7 @@ class core_externallib_testcase extends advanced_testcase {
         // Call without correct context details.
         $this->resetAfterTest(true);
         $course = self::getDataGenerator()->create_course();
-        $this->setExpectedException('invalid_parameter_exception');
+        $this->expectException('invalid_parameter_exception');
         test_exernal_api::get_context_wrapper(array('roleid' => 3, 'userid' => $USER->id, 'instanceid' => $course->id));
     }
 

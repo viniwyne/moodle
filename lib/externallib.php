@@ -904,6 +904,7 @@ function external_format_string($str, $contextid, $striplinks = true, $options =
  *                      returned. Default false.
  *      allowid     :   If true then id attributes will not be removed, even when using htmlpurifier. Default (different from
  *                      format_text) true. Default changed id attributes are commonly needed.
+ *      blanktarget :   If true all <a> tags will have target="_blank" added unless target is explicitly specified.
  * </pre>
  *
  * @param string $text The content that may contain ULRs in need of rewriting.
@@ -915,14 +916,16 @@ function external_format_string($str, $contextid, $striplinks = true, $options =
  * @param object/array $options text formatting options
  * @return array text + textformat
  * @since Moodle 2.3
+ * @since Moodle 3.2 component, filearea and itemid are optional parameters
  */
-function external_format_text($text, $textformat, $contextid, $component, $filearea, $itemid, $options = null) {
+function external_format_text($text, $textformat, $contextid, $component = null, $filearea = null, $itemid = null,
+                                $options = null) {
     global $CFG;
 
     // Get settings (singleton).
     $settings = external_settings::get_instance();
 
-    if ($settings->get_fileurl()) {
+    if ($component and $filearea and $settings->get_fileurl()) {
         require_once($CFG->libdir . "/filelib.php");
         $text = file_rewrite_pluginfile_urls($text, $settings->get_file(), $contextid, $component, $filearea, $itemid);
     }

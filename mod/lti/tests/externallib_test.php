@@ -52,7 +52,8 @@ class mod_lti_external_testcase extends externallib_advanced_testcase {
 
         // Setup test data.
         $this->course = $this->getDataGenerator()->create_course();
-        $this->lti = $this->getDataGenerator()->create_module('lti', array('course' => $this->course->id));
+        $this->lti = $this->getDataGenerator()->create_module('lti',
+            array('course' => $this->course->id, 'toolurl' => 'http://localhost/not/real/tool.php'));
         $this->context = context_module::instance($this->lti->cmid);
         $this->cm = get_coursemodule_from_instance('lti', $this->lti->id);
 
@@ -299,7 +300,7 @@ class mod_lti_external_testcase extends externallib_advanced_testcase {
      * Test create tool proxy with duplicate url
      */
     public function test_mod_lti_create_tool_proxy_duplicateurl() {
-        $this->setExpectedException('moodle_exception');
+        $this->expectException('moodle_exception');
         $proxy = mod_lti_external::create_tool_proxy('Test proxy 1', $this->getExternalTestFileUrl('/test.html'), array(), array());
         $proxy = mod_lti_external::create_tool_proxy('Test proxy 2', $this->getExternalTestFileUrl('/test.html'), array(), array());
     }
@@ -309,7 +310,7 @@ class mod_lti_external_testcase extends externallib_advanced_testcase {
      */
     public function test_mod_lti_create_tool_proxy_without_capability() {
         self::setUser($this->teacher);
-        $this->setExpectedException('required_capability_exception');
+        $this->expectException('required_capability_exception');
         $proxy = mod_lti_external::create_tool_proxy('Test proxy', $this->getExternalTestFileUrl('/test.html'), array(), array());
     }
 
@@ -382,7 +383,7 @@ class mod_lti_external_testcase extends externallib_advanced_testcase {
      * Test create tool type failure from non existant file
      */
     public function test_mod_lti_create_tool_type_nonexistant_file() {
-        $this->setExpectedException('moodle_exception');
+        $this->expectException('moodle_exception');
         $type = mod_lti_external::create_tool_type($this->getExternalTestFileUrl('/doesntexist.xml'), '', '');
     }
 
@@ -390,7 +391,7 @@ class mod_lti_external_testcase extends externallib_advanced_testcase {
      * Test create tool type failure from xml that is not a cartridge
      */
     public function test_mod_lti_create_tool_type_bad_file() {
-        $this->setExpectedException('moodle_exception');
+        $this->expectException('moodle_exception');
         $type = mod_lti_external::create_tool_type($this->getExternalTestFileUrl('/rsstest.xml'), '', '');
     }
 
@@ -399,7 +400,7 @@ class mod_lti_external_testcase extends externallib_advanced_testcase {
      */
     public function test_mod_lti_create_tool_type_without_capability() {
         self::setUser($this->teacher);
-        $this->setExpectedException('required_capability_exception');
+        $this->expectException('required_capability_exception');
         $type = mod_lti_external::create_tool_type($this->getExternalTestFileUrl('/ims_cartridge_basic_lti_link.xml'), '', '');
     }
 
@@ -430,7 +431,7 @@ class mod_lti_external_testcase extends externallib_advanced_testcase {
     public function test_mod_lti_delete_tool_type_without_capability() {
         $type = mod_lti_external::create_tool_type($this->getExternalTestFileUrl('/ims_cartridge_basic_lti_link.xml'), '', '');
         $this->assertNotEmpty(lti_get_type($type['id']));
-        $this->setExpectedException('required_capability_exception');
+        $this->expectException('required_capability_exception');
         self::setUser($this->teacher);
         $type = mod_lti_external::delete_tool_type($type['id']);
     }

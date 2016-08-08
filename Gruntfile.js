@@ -104,18 +104,26 @@ module.exports = function(grunt) {
         eslint: {
             // Even though warnings dont stop the build we don't display warnings by default because
             // at this moment we've got too many core warnings.
-            options: { quiet: !grunt.option('show-lint-warnings') },
-            // Check AMD files. We add some stricter rules which we can't apply to the default configuration due
-            // to YUI rollups.
+            options: {quiet: !grunt.option('show-lint-warnings')},
             amd: {
               src: amdSrc,
-              options: {
-                  rules: {'no-undef': 'error', 'no-unused-vars': 'error', 'no-empty': 'error', 'no-unused-expressions': 'error'}
+              // Check AMD with some slightly stricter rules.
+              rules: {
+                'no-unused-vars': 'error',
+                'no-implicit-globals': 'error'
               }
             },
             // Check YUI module source files.
             yui: {
                src: ['**/yui/src/**/*.js', '!*/**/yui/src/*/meta/*.js'],
+               options: {
+                   // Disable some rules which we can't safely define for YUI rollups.
+                   rules: {
+                     'no-undef': 'off',
+                     'no-unused-vars': 'off',
+                     'no-unused-expressions': 'off'
+                   }
+               }
             }
         },
         uglify: {
@@ -124,7 +132,8 @@ module.exports = function(grunt) {
                     expand: true,
                     src: amdSrc,
                     rename: uglifyRename
-                }]
+                }],
+                options: {report: 'none'}
             }
         },
         less: {
@@ -148,7 +157,7 @@ module.exports = function(grunt) {
             },
             bootstrapbase: {
                 files: ["theme/bootstrapbase/less/**/*.less"],
-                tasks: ["less:bootstrapbase"]
+                tasks: ["css"]
             },
             yui: {
                 files: ['**/yui/src/**/*.js'],
@@ -159,6 +168,27 @@ module.exports = function(grunt) {
             options: {
                 recursive: true,
                 paths: [cwd]
+            }
+        },
+        stylelint: {
+            less: {
+                options: {
+                    syntax: 'less',
+                    configOverrides: {
+                        rules: {
+                            // TODO: MDL-55165 -Enable these rules once we make output-changing changes to less.
+                            "declaration-block-no-ignored-properties": null,
+                            "value-keyword-case": null,
+                            "declaration-block-no-duplicate-properties": null,
+                            "declaration-block-no-shorthand-property-overrides": null,
+                            "selector-type-no-unknown": null,
+                            "length-zero-no-unit": null,
+                            "color-hex-case": null,
+                            "color-hex-length": null
+                        }
+                    }
+                },
+                src: ['theme/**/*.less', '!theme/bootstrapbase/less/bootstrap/*'],
             }
         }
     });
@@ -286,6 +316,7 @@ module.exports = function(grunt) {
           grunt.config('eslint.yui.src', files);
           grunt.config('uglify.amd.files', [{ expand: true, src: files, rename: uglifyRename }]);
           grunt.config('shifter.options.paths', files);
+          grunt.config('stylelint.less.src', files);
           changedFiles = Object.create(null);
     }, 200);
 
@@ -299,6 +330,7 @@ module.exports = function(grunt) {
     grunt.loadNpmTasks('grunt-contrib-less');
     grunt.loadNpmTasks('grunt-contrib-watch');
     grunt.loadNpmTasks('grunt-eslint');
+    grunt.loadNpmTasks('grunt-stylelint');
 
     // Register JS tasks.
     grunt.registerTask('shifter', 'Run Shifter against the current directory', tasks.shifter);
@@ -308,7 +340,7 @@ module.exports = function(grunt) {
     grunt.registerTask('js', ['amd', 'yui']);
 
     // Register CSS taks.
-    grunt.registerTask('css', ['less:bootstrapbase']);
+    grunt.registerTask('css', ['stylelint:less', 'less:bootstrapbase']);
 
     // Register the startup task.
     grunt.registerTask('startup', 'Run the correct tasks for the current directory', tasks.startup);

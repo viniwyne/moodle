@@ -523,7 +523,7 @@ class core_user_externallib_testcase extends externallib_advanced_testcase {
 
         // Call without required capability
         $this->unassignUserCapability('moodle/user:create', $context->id, $roleid);
-        $this->setExpectedException('required_capability_exception');
+        $this->expectException('required_capability_exception');
         $createdusers = core_user_external::create_users(array($user1));
     }
 
@@ -554,7 +554,7 @@ class core_user_externallib_testcase extends externallib_advanced_testcase {
 
         // Call without required capability.
         $this->unassignUserCapability('moodle/user:delete', $context->id, $roleid);
-        $this->setExpectedException('required_capability_exception');
+        $this->expectException('required_capability_exception');
         core_user_external::delete_users(array($user1->id, $user2->id));
     }
 
@@ -634,7 +634,7 @@ class core_user_externallib_testcase extends externallib_advanced_testcase {
 
         // Call without required capability.
         $this->unassignUserCapability('moodle/user:update', $context->id, $roleid);
-        $this->setExpectedException('required_capability_exception');
+        $this->expectException('required_capability_exception');
         core_user_external::update_users(array($user1));
     }
 
@@ -789,6 +789,69 @@ class core_user_externallib_testcase extends externallib_advanced_testcase {
         $result = core_user_external::remove_user_device($device['uuid']);
         $result = external_api::clean_returnvalue(core_user_external::remove_user_device_returns(), $result);
         $this->assertTrue($result['removed']);
+    }
+
+    /**
+     * Test get_user_preferences
+     */
+    public function test_get_user_preferences() {
+        $this->resetAfterTest(true);
+
+        $user = self::getDataGenerator()->create_user();
+        set_user_preference('calendar_maxevents', 1, $user);
+        set_user_preference('some_random_text', 'text', $user);
+
+        $this->setUser($user);
+
+        $result = core_user_external::get_user_preferences();
+        $result = external_api::clean_returnvalue(core_user_external::get_user_preferences_returns(), $result);
+        $this->assertCount(0, $result['warnings']);
+        // Expect 3, _lastloaded is always returned.
+        $this->assertCount(3, $result['preferences']);
+
+        foreach ($result['preferences'] as $pref) {
+            if ($pref['name'] === '_lastloaded') {
+                continue;
+            }
+            // Check we receive the expected preferences.
+            $this->assertEquals(get_user_preferences($pref['name']), $pref['value']);
+        }
+
+        // Retrieve just one preference.
+        $result = core_user_external::get_user_preferences('some_random_text');
+        $result = external_api::clean_returnvalue(core_user_external::get_user_preferences_returns(), $result);
+        $this->assertCount(0, $result['warnings']);
+        $this->assertCount(1, $result['preferences']);
+        $this->assertEquals('text', $result['preferences'][0]['value']);
+
+        // Retrieve non-existent preference.
+        $result = core_user_external::get_user_preferences('non_existent');
+        $result = external_api::clean_returnvalue(core_user_external::get_user_preferences_returns(), $result);
+        $this->assertCount(0, $result['warnings']);
+        $this->assertCount(1, $result['preferences']);
+        $this->assertEquals(null, $result['preferences'][0]['value']);
+
+        // Check that as admin we can retrieve all the preferences for any user.
+        $this->setAdminUser();
+        $result = core_user_external::get_user_preferences('', $user->id);
+        $result = external_api::clean_returnvalue(core_user_external::get_user_preferences_returns(), $result);
+        $this->assertCount(0, $result['warnings']);
+        $this->assertCount(3, $result['preferences']);
+
+        foreach ($result['preferences'] as $pref) {
+            if ($pref['name'] === '_lastloaded') {
+                continue;
+            }
+            // Check we receive the expected preferences.
+            $this->assertEquals(get_user_preferences($pref['name'], null, $user), $pref['value']);
+        }
+
+        // Check that as a non admin user we cannot retrieve other users preferences.
+        $anotheruser = self::getDataGenerator()->create_user();
+        $this->setUser($anotheruser);
+
+        $this->setExpectedException('required_capability_exception');
+        $result = core_user_external::get_user_preferences('', $user->id);
     }
 
 }
